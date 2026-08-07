@@ -1,47 +1,22 @@
 import streamlit as st
-from src. import ResumeParserService
-from vectorcv.services.jd_parser import JobDescriptionParser
-from vectorcv.services.match_engine import MatchEngine
-from vectorcv.services.generator import RuleBasedBulletGenerator
-from vectorcv.database.connection import init_db
-from vectorcv.database.repository import save_scan_record, get_recent_scans
+from src.vectorcv import *
 
 # 1. Page Configuration
-st.set_page_config(
-    page_title="VectorCV | Deterministic Resume Matcher",
-    page_icon="🎯",
-    layout="wide"
-)
+st.set_page_config(page_title="VectorCV", page_icon="🎯", layout="wide")
 
-# 2. Initialize Database on Startup
+# 2. Database & Resource Initialization
 init_db()
 
-# 3. Instantiate Service Engines
 @st.cache_resource
-def load_engines():
-    return (
-        ResumeParserService(),
-        JobDescriptionParser(),
-        MatchEngine(),
-        RuleBasedBulletGenerator()
-    )
+def load_services():
+    return ResumeParserService(), MatchEngine(), RuleBasedBulletGenerator()
 
-resume_parser, jd_parser, match_engine, bullet_generator = load_engines()
+parser, match_engine, generator = load_services()
 
-# 4. Sidebar - Past Scan History
-st.sidebar.title("📊 Recent Scans")
-recent_scans = get_recent_scans(limit=5)
-if recent_scans:
-    for scan in recent_scans:
-        st.sidebar.metric(
-            label=scan["file_name"],
-            value=f"{scan['match_score']}% Match",
-            delta=f"{scan['missing_keyword_count']} missing terms"
-        )
-else:
-    st.sidebar.info("No scan history found.")
+# 3. Sidebar Render
+render_sidebar_history(get_recent_scans(limit=5))
 
-# 5. Main UI Header
+# 4. Main Interface Header
 st.title("🎯 VectorCV")
 st.caption("Offline, deterministic ATS resume compatibility & NLP match engine.")
 
@@ -49,56 +24,42 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("1. Upload Resume (PDF)")
-    uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
+    uploaded_file = st.file_uploader("Select PDF file", type=["pdf"])
 
 with col2:
     st.subheader("2. Target Job Description")
-    job_description = st.text_area("Paste job requirements here", height=200)
+    job_description = st.text_area("Paste job requirements", height=200)
 
-# 6. Process & Analyze
-if st.button("Run Match Analysis", type="primary"):
+# 5. Pipeline Execution Trigger
+if st.button("Analyze Alignment", type="primary"):
     if not uploaded_file or not job_description.strip():
-        st.warning("Please upload a PDF resume and paste a job description.")
+        st.warning("Please upload a PDF resume and provide a job description.")
     else:
-        with st.spinner("Analyzing document structure and vector space..."):
-            # Step A: Parse PDF
+        with st.spinner("Processing PDF layout and vector space model..."):
             file_bytes = uploaded_file.read()
-            parsed_resume = resume_parser.parse_resume(file_bytes)
+            parsed_resume = parser.parse_resume(file_bytes)
 
             if "error" in parsed_resume:
                 st.error(parsed_resume["error"])
             else:
-                raw_resume = parsed_resume["raw_text"]
+                raw_text = parsed_resume["raw_text"]
+                score = match_engine.compute_similarity(raw_text, job_description)
+                missing_kw = match_engine.extract_missing_keywords(raw_text, job_description)
+                bullets = generator.generate_tailored_bullets(missing_kw)
 
-                # Step B: Match & Extract
-                score = match_engine.compute_similarity(raw_resume, job_description)
-                missing_keywords = match_engine.extract_missing_keywords(raw_resume, job_description)
-                suggested_bullets = bullet_generator.generate_tailored_bullets(missing_keywords)
-
-                # Step C: Log to SQLite
+                # Persist Metrics to SQLite
                 save_scan_record(
                     file_name=uploaded_file.name,
-                    raw_resume_text=raw_resume,
+                    raw_resume_text=raw_text,
                     job_description=job_description,
                     match_score=score,
-                    missing_keyword_count=len(missing_keywords)
+                    missing_keyword_count=len(missing_kw)
                 )
 
-                # Step D: Display Results
-                st.divider()
-                st.header("Results Analysis")
-                
-                m1, m2, m3 = st.columns(3)
-                m1.metric("ATS Compatibility Score", f"{score}%")
-                m2.metric("Missing Keywords Found", len(missing_keywords))
-                m3.metric("Extracted Contact Email", parsed_resume["contact_info"]["email"] or "N/A")
-
-                st.subheader("Missing Critical Keywords")
-                if missing_keywords:
-                    st.write(" • ".join([f"`{kw}`" for kw in missing_keywords]))
-                else:
-                    st.success("No critical keyword gaps identified!")
-
-                st.subheader("Suggested Action Bullets (spaCy POS Generated)")
-                for bullet in suggested_bullets:
-                    st.markdown(f"- {bullet}")
+                # Render Results
+                render_results(
+                    score=score,
+                    missing_keywords=missing_kw,
+                    bullets=bullets,
+                    email=parsed_resume["contact_info"]["email"]
+                )

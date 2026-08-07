@@ -1,1 +1,1 @@
-from .components import flash_success, flash_error, word_count
+from .components import *
