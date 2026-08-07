@@ -1,76 +1,104 @@
 import streamlit as st
-import pdfplumber
-from src.vectorcv import (
-    flash_success,
-    flash_error,
-    extract_contact_info,
-    SkillExtractor,
-    segment_resume_sections,
-    word_count,
-    JobDescriptionParser,
+from src. import ResumeParserService
+from vectorcv.services.jd_parser import JobDescriptionParser
+from vectorcv.services.match_engine import MatchEngine
+from vectorcv.services.generator import RuleBasedBulletGenerator
+from vectorcv.database.connection import init_db
+from vectorcv.database.repository import save_scan_record, get_recent_scans
+
+# 1. Page Configuration
+st.set_page_config(
+    page_title="VectorCV | Deterministic Resume Matcher",
+    page_icon="🎯",
+    layout="wide"
 )
 
-sample_jd = """
-We are looking for a Senior Software Engineer with 3+ years of experience in building scalable web apps.
-Requirements:
-- Bachelor's degree in Computer Science or related field.
-- Proficiency in Python, FastAPI, Docker, and PostgreSQL.
-- Experience with MLOps pipelines and Machine Learning tools like PyTorch or scikit-learn.
-"""
+# 2. Initialize Database on Startup
+init_db()
 
-st.title("VectorCV")
+# 3. Instantiate Service Engines
+@st.cache_resource
+def load_engines():
+    return (
+        ResumeParserService(),
+        JobDescriptionParser(),
+        MatchEngine(),
+        RuleBasedBulletGenerator()
+    )
 
-st.write("Upload your resume here:")
-resume_file = st.file_uploader("Upload your resume", type=["pdf"])
-if st.button("Submit", key="submit_resume"):
-    if resume_file is None:
-        flash_error("Resume not uploaded!", 1)
+resume_parser, jd_parser, match_engine, bullet_generator = load_engines()
+
+# 4. Sidebar - Past Scan History
+st.sidebar.title("📊 Recent Scans")
+recent_scans = get_recent_scans(limit=5)
+if recent_scans:
+    for scan in recent_scans:
+        st.sidebar.metric(
+            label=scan["file_name"],
+            value=f"{scan['match_score']}% Match",
+            delta=f"{scan['missing_keyword_count']} missing terms"
+        )
+else:
+    st.sidebar.info("No scan history found.")
+
+# 5. Main UI Header
+st.title("🎯 VectorCV")
+st.caption("Offline, deterministic ATS resume compatibility & NLP match engine.")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("1. Upload Resume (PDF)")
+    uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
+
+with col2:
+    st.subheader("2. Target Job Description")
+    job_description = st.text_area("Paste job requirements here", height=200)
+
+# 6. Process & Analyze
+if st.button("Run Match Analysis", type="primary"):
+    if not uploaded_file or not job_description.strip():
+        st.warning("Please upload a PDF resume and paste a job description.")
     else:
-        # flash_success("Resume uploaded successfully!", 1)
-        with pdfplumber.open(resume_file) as pdf:
-            num_of_pages = len(pdf.pages)
-            pages = pdf.pages[num_of_pages - 1]
-            text = pages.extract_text()
-            # st.write(text)
-            skills = SkillExtractor().extract_skills(text)
-            with st.container(border=True):
-                contact_info = extract_contact_info(text)
-                # st.write(contact_info)
-                st.subheader("Contact Info")
-                for i in contact_info:
-                    st.write(contact_info[i])
-            with st.container(border=True):
-                st.subheader("Skills")
-                for i in skills:
-                    st.write(i)
-            with st.container(border=True):
-                sections = segment_resume_sections(text)
-                st.subheader("Sections")
-                for i in sections:
-                    st.write(sections[i])
-            # st.write(sections)
+        with st.spinner("Analyzing document structure and vector space..."):
+            # Step A: Parse PDF
+            file_bytes = uploaded_file.read()
+            parsed_resume = resume_parser.parse_resume(file_bytes)
 
-st.write("paste the job description here:")
-job_description = st.text_area("Job Description", value=None, key="job_description")
-if st.button("Submit", key="submit_discription"):
-    if job_description is None:
-        flash_error("Job description not uploaded!", 1)
-    elif word_count(job_description) < 10:
-        flash_error("Job description too short!", 1)
-    else:
-        flash_success("Job description uploaded successfully!", 1)
+            if "error" in parsed_resume:
+                st.error(parsed_resume["error"])
+            else:
+                raw_resume = parsed_resume["raw_text"]
 
-        # Instantiate parser
-        jd_parser = JobDescriptionParser()
+                # Step B: Match & Extract
+                score = match_engine.compute_similarity(raw_resume, job_description)
+                missing_keywords = match_engine.extract_missing_keywords(raw_resume, job_description)
+                suggested_bullets = bullet_generator.generate_tailored_bullets(missing_keywords)
 
-        # Extract structured information
-        parsed_data = jd_parser.parse(job_description)
+                # Step C: Log to SQLite
+                save_scan_record(
+                    file_name=uploaded_file.name,
+                    raw_resume_text=raw_resume,
+                    job_description=job_description,
+                    match_score=score,
+                    missing_keyword_count=len(missing_keywords)
+                )
 
-        st.write("Extracted Skills:", parsed_data["skills"])
-        # Output: ['Bachelor', 'Computer Science', 'Docker', 'FastAPI', 'MLOps', 'Machine Learning', 'PostgreSQL', 'PyTorch', 'Python', 'scikit-learn']
+                # Step D: Display Results
+                st.divider()
+                st.header("Results Analysis")
+                
+                m1, m2, m3 = st.columns(3)
+                m1.metric("ATS Compatibility Score", f"{score}%")
+                m2.metric("Missing Keywords Found", len(missing_keywords))
+                m3.metric("Extracted Contact Email", parsed_resume["contact_info"]["email"] or "N/A")
 
-        st.write("Required Experience:", parsed_data["experience"])
-        # Output: ['3+ years']
+                st.subheader("Missing Critical Keywords")
+                if missing_keywords:
+                    st.write(" • ".join([f"`{kw}`" for kw in missing_keywords]))
+                else:
+                    st.success("No critical keyword gaps identified!")
 
-        st.write("Required Education:", parsed_data["education"])
-        # Output: ['Bachelor', 'Computer Science']
+                st.subheader("Suggested Action Bullets (spaCy POS Generated)")
+                for bullet in suggested_bullets:
+                    st.markdown(f"- {bullet}")
