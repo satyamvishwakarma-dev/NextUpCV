@@ -1,8 +1,13 @@
 import streamlit as st
 import pdfplumber
-from src.ui import flash_success, flash_error
-from src.utilities import extract_contact_info, SkillExtractor, segment_resume_sections
-from ui.components import word_count
+from src.vectorcv import (
+    flash_success,
+    flash_error,
+    extract_contact_info,
+    SkillExtractor,
+    segment_resume_sections,
+    word_count,
+)
 
 st.title("VectorCV")
 
@@ -45,5 +50,3 @@ if st.button("Submit", key="submit_discription"):
         flash_error("Job description too short!", 1)
     else:
         flash_success("Job description uploaded successfully!", 1)
-
-        
