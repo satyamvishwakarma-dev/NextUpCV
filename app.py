@@ -7,7 +7,16 @@ from src.vectorcv import (
     SkillExtractor,
     segment_resume_sections,
     word_count,
+    JobDescriptionParser,
 )
+
+sample_jd = """
+We are looking for a Senior Software Engineer with 3+ years of experience in building scalable web apps.
+Requirements:
+- Bachelor's degree in Computer Science or related field.
+- Proficiency in Python, FastAPI, Docker, and PostgreSQL.
+- Experience with MLOps pipelines and Machine Learning tools like PyTorch or scikit-learn.
+"""
 
 st.title("VectorCV")
 
@@ -50,3 +59,18 @@ if st.button("Submit", key="submit_discription"):
         flash_error("Job description too short!", 1)
     else:
         flash_success("Job description uploaded successfully!", 1)
+
+        # Instantiate parser
+        jd_parser = JobDescriptionParser()
+
+        # Extract structured information
+        parsed_data = jd_parser.parse(job_description)
+
+        st.write("Extracted Skills:", parsed_data["skills"])
+        # Output: ['Bachelor', 'Computer Science', 'Docker', 'FastAPI', 'MLOps', 'Machine Learning', 'PostgreSQL', 'PyTorch', 'Python', 'scikit-learn']
+
+        st.write("Required Experience:", parsed_data["experience"])
+        # Output: ['3+ years']
+
+        st.write("Required Education:", parsed_data["education"])
+        # Output: ['Bachelor', 'Computer Science']

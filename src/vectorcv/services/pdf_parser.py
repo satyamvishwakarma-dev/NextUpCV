@@ -48,11 +48,12 @@ class JobDescriptionParser:
     def extract_experience_years(self, jd_text: str) -> list[str]:
         """
         Extracts required years of experience using regular expressions.
-        Handles formats like: '3+ years', '5-7 yrs', 'at least 2 years'.
+        Handles formats like: '3+ years', '5-7 yrs', '10 years of experience'.
         """
-        pattern = r'(?:\b\d{1,2}\b(?:\+|\s*-\s*\d{1,2})?)\s*(?:+)?\s*(?:years?|yrs?)(?:\s*of\s*experience)?'
+        # Corrected pattern fixing the unescaped '+' quantifier
+        pattern = r'\b\d{1,2}(?:\+|\s*-\s*\d{1,2})?\s*(?:years?|yrs?)(?:\s*of\s*experience)?'
         matches = re.findall(pattern, jd_text, re.IGNORECASE)
-        return list(set(matches))
+        return sorted(list(set(matches)))
 
     def extract_education_requirements(self, jd_text: str) -> list[str]:
         """
