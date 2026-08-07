@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+
+# Folder structure
+folder_structure.txt
+
+# Database
+data/vectorcv.db
