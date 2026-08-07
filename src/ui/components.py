@@ -15,3 +15,7 @@ def flash_error(message, duration=3):
     placeholder.error(message)
     time.sleep(duration)
     placeholder.empty()
+
+def word_count(text):
+    """Counts the number of words in a string."""
+    return len(text.split())

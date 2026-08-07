@@ -1,13 +1,14 @@
 import streamlit as st
 import pdfplumber
 from src.ui import flash_success, flash_error
-from src.utilities import extract_contact_info, SkillExtractor
+from src.utilities import extract_contact_info, SkillExtractor, segment_resume_sections
+from ui.components import word_count
 
 st.title("VectorCV")
 
 st.write("Upload your resume here:")
 resume_file = st.file_uploader("Upload your resume", type=["pdf"])
-if st.button("Submit"):
+if st.button("Submit", key="submit_resume"):
     if resume_file is None:
         flash_error("Resume not uploaded!", 1)
     else:
@@ -28,4 +29,21 @@ if st.button("Submit"):
                 st.subheader("Skills")
                 for i in skills:
                     st.write(i)
-            
+            with st.container(border=True):
+                sections = segment_resume_sections(text)
+                st.subheader("Sections")
+                for i in sections:
+                    st.write(sections[i])
+            # st.write(sections)
+
+st.write("paste the job description here:")
+job_description = st.text_area("Job Description", value=None, key="job_description")
+if st.button("Submit", key="submit_discription"):
+    if job_description is None:
+        flash_error("Job description not uploaded!", 1)
+    elif word_count(job_description) < 10:
+        flash_error("Job description too short!", 1)
+    else:
+        flash_success("Job description uploaded successfully!", 1)
+
+        
