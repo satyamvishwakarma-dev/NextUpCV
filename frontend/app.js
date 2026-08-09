@@ -1,4 +1,47 @@
-// Tab Navigation Switcher
+document.addEventListener('DOMContentLoaded', () => {
+    const dropZone = document.getElementById('drop-zone');
+    const pdfInput = document.getElementById('pdf-input');
+    const fileDetails = document.getElementById('file-details');
+    const analyzeBtn = document.getElementById('analyze-btn');
+
+    if (!dropZone || !pdfInput) {
+        console.error("Critical Error: Upload elements missing from DOM.");
+        return;
+    }
+
+    // Trigger file browser on click
+    dropZone.addEventListener('click', () => pdfInput.click());
+
+    // Drag and Drop Visual Effects
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#6366f1';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = '#1f293d';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#1f293d';
+        if (e.dataTransfer.files.length > 0) {
+            pdfInput.files = e.dataTransfer.files;
+            updateFileLabel();
+        }
+    });
+
+    pdfInput.addEventListener('change', updateFileLabel);
+
+    function updateFileLabel() {
+        if (pdfInput.files.length > 0) {
+            fileDetails.innerText = `Selected: ${pdfInput.files[0].name}`;
+            fileDetails.classList.remove('hidden');
+        }
+    }
+});
+
+// Standalone Tab Navigation
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
@@ -10,46 +53,15 @@ function switchTab(tabId) {
     if (activeLink) activeLink.classList.add('active');
 }
 
-// File Drag & Drop Handling
-const dropZone = document.getElementById('drop-zone');
-const pdfInput = document.getElementById('pdf-input');
-const fileDetails = document.getElementById('file-details');
-
-dropZone.addEventListener('click', () => pdfInput.click());
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = '#6366f1';
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.style.borderColor = '#334155';
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = '#334155';
-    if (e.dataTransfer.files.length > 0) {
-        pdfInput.files = e.dataTransfer.files;
-        updateFileLabel();
-    }
-});
-
-pdfInput.addEventListener('change', updateFileLabel);
-
-function updateFileLabel() {
-    if (pdfInput.files.length > 0) {
-        fileDetails.innerText = `Selected: ${pdfInput.files[0].name}`;
-        fileDetails.classList.remove('hidden');
-    }
-}
-
-// Execute Analysis API Call
+// Asynchronous API Fetch Function
 async function runAnalysis() {
+    const pdfInput = document.getElementById('pdf-input');
     const jdText = document.getElementById('jd-input').value;
+    const loadingState = document.getElementById('loading-state');
+    const resultsSection = document.getElementById('results-section');
 
-    if (pdfInput.files.length === 0) {
-        alert("Please select a PDF resume file.");
+    if (!pdfInput || pdfInput.files.length === 0) {
+        alert("Please select a PDF resume file first.");
         return;
     }
     if (!jdText.trim()) {
@@ -61,9 +73,8 @@ async function runAnalysis() {
     formData.append("file", pdfInput.files[0]);
     formData.append("job_description", jdText);
 
-    // Toggle Loading Indicators
-    document.getElementById('loading-state').classList.remove('hidden');
-    document.getElementById('results-section').classList.add('hidden');
+    loadingState.classList.remove('hidden');
+    resultsSection.classList.add('hidden');
 
     try {
         const response = await fetch('/api/v1/analyze', {
@@ -74,42 +85,39 @@ async function runAnalysis() {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.detail || "Error processing request.");
+            throw new Error(data.detail || `Server returned status ${response.status}`);
         }
 
-        // Render Dashboard Results
-        renderResults(data);
+        // Render Dashboard Metrics
+        document.getElementById('score-val').innerText = `${data.match_score}%`;
+        document.getElementById('missing-count').innerText = data.missing_keywords.length;
+        document.getElementById('contact-val').innerText = (data.contact_info && data.contact_info.email) ? data.contact_info.email : "Not Found";
+
+        // Render Keyword Chips
+        const chipsContainer = document.getElementById('keyword-chips');
+        chipsContainer.innerHTML = '';
+        data.missing_keywords.forEach(kw => {
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            chip.innerText = kw;
+            chipsContainer.appendChild(chip);
+        });
+
+        // Render Generated Bullets
+        const bulletList = document.getElementById('bullet-list');
+        bulletList.innerHTML = '';
+        data.suggested_bullets.forEach(b => {
+            const li = document.createElement('li');
+            li.innerText = b;
+            bulletList.appendChild(li);
+        });
+
+        resultsSection.classList.remove('hidden');
 
     } catch (error) {
-        alert(`Analysis Failed: ${error.message}`);
+        console.error("Analysis Request Error:", error);
+        alert(`Analysis Error: ${error.message}`);
     } finally {
-        document.getElementById('loading-state').classList.add('hidden');
+        loadingState.classList.add('hidden');
     }
-}
-
-function renderResults(data) {
-    document.getElementById('score-val').innerText = `${data.match_score}%`;
-    document.getElementById('missing-count').innerText = data.missing_keywords.length;
-    document.getElementById('contact-val').innerText = data.contact_info.email || "Not Found";
-
-    // Keyword Chips Rendering
-    const chipsContainer = document.getElementById('keyword-chips');
-    chipsContainer.innerHTML = '';
-    data.missing_keywords.forEach(kw => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.innerText = kw;
-        chipsContainer.appendChild(chip);
-    });
-
-    // Suggested Bullets Rendering
-    const bulletList = document.getElementById('bullet-list');
-    bulletList.innerHTML = '';
-    data.suggested_bullets.forEach(b => {
-        const li = document.createElement('li');
-        li.innerText = b;
-        bulletList.appendChild(li);
-    });
-
-    document.getElementById('results-section').classList.remove('hidden');
 }

@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VectorCV | Deterministic Document Engine</title>
-    <link rel="stylesheet" href="/frontend/style.css">
+    <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
 
     <!-- NAVBAR WITH GLOW EFFECTS -->
@@ -17,11 +19,10 @@
                 <span class="logo-text">Vector<span class="highlight">CV</span></span>
             </div>
             <nav class="nav-links">
-                <a href="/frontend/index.html" class="nav-link active" onclick="switchTab('home')">Home</a>
-                <a href="/frontend/about.html" class="nav-link" onclick="switchTab('about')">About Engine</a>
-                <a href="/frontend/pricing.html" class="nav-link" onclick="switchTab('pricing')">Pricing</a>
-                <!-- Contact link targets your external/custom page -->
-                <a href="https://msystech.onrender.com/pages/contact.html" class="nav-link">Contact Us</a>
+                <a href="/" class="nav-link">Home</a>
+                <a href="/about" class="nav-link">About Engine</a>
+                <a href="/pricing" class="nav-link">Pricing</a>
+                <a href="/contact" class="nav-link">Contact Us</a>
             </nav>
         </div>
     </header>
@@ -48,7 +49,8 @@
 
                 <div class="card jd-card">
                     <h3>2. Target Job Requirements</h3>
-                    <textarea id="jd-input" placeholder="Paste target job description or skill requirements here..."></textarea>
+                    <textarea id="jd-input"
+                        placeholder="Paste target job description or skill requirements here..."></textarea>
                 </div>
             </div>
 
@@ -100,19 +102,22 @@
                 <div class="card">
                     <span class="tech-badge">scikit-learn</span>
                     <h3>TF-IDF & Cosine Similarity</h3>
-                    <p>Converts document terms into multi-dimensional vectors using term frequency-inverse document frequency, scoring spatial alignment with mathematical precision.</p>
+                    <p>Converts document terms into multi-dimensional vectors using term frequency-inverse document
+                        frequency, scoring spatial alignment with mathematical precision.</p>
                 </div>
 
                 <div class="card">
                     <span class="tech-badge">spaCy NLP</span>
                     <h3>Part-of-Speech Tagging</h3>
-                    <p>Utilizes lightweight spaCy pipelines (`en_core_web_sm`) to analyze grammatical structure and automatically extract lemmas, nouns, and action verbs.</p>
+                    <p>Utilizes lightweight spaCy pipelines (`en_core_web_sm`) to analyze grammatical structure and
+                        automatically extract lemmas, nouns, and action verbs.</p>
                 </div>
 
                 <div class="card">
                     <span class="tech-badge">SQLite & FastAPI</span>
                     <h3>Thread-Safe Logging</h3>
-                    <p>Integrates thread-safe connection managers and parameterized queries to log all vector scans directly into a local SQLite database.</p>
+                    <p>Integrates thread-safe connection managers and parameterized queries to log all vector scans
+                        directly into a local SQLite database.</p>
                 </div>
             </div>
         </section>
@@ -168,7 +173,8 @@
                         <li>✔ Custom DB Storage Adapters</li>
                         <li>✔ SLA & Integration Support</li>
                     </ul>
-                    <button class="btn-primary" style="background: var(--card-border);" onclick="window.location.href='/contact'">Contact Sales</button>
+                    <button class="btn-primary" style="background: var(--card-border);"
+                        onclick="window.location.href='/contact'">Contact Sales</button>
                 </div>
             </div>
         </section>
@@ -177,4 +183,5 @@
 
     <script src="/static/app.js"></script>
 </body>
+
 </html>

@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 # Import directly from your src modules
 from src.vectorcv import *
@@ -92,6 +92,10 @@ async def read_about():
 @app.get("/pricing")
 async def read_pricing():
     return FileResponse(os.path.join(frontend_dir, "pricing.html"))
+
+@app.get("/contact")
+async def read_contact():
+    return RedirectResponse(url="https://msystech.onrender.com/pages/contact.html")
 
 
 # Serve HTML/CSS/JS frontend files
