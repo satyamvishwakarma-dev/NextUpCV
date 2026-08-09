@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VectorCV | Deterministic Document Engine</title>
+    <link rel="stylesheet" href="/frontend/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- NAVBAR WITH GLOW EFFECTS -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <span class="logo-icon">🎯</span>
+                <span class="logo-text">Vector<span class="highlight">CV</span></span>
+            </div>
+            <nav class="nav-links">
+                <a href="/frontend/index.html" class="nav-link active" onclick="switchTab('home')">Home</a>
+                <a href="/frontend/about.html" class="nav-link" onclick="switchTab('about')">About Engine</a>
+                <a href="/frontend/pricing.html" class="nav-link" onclick="switchTab('pricing')">Pricing</a>
+                <!-- Contact link targets your external/custom page -->
+                <a href="https://msystech.onrender.com/pages/contact.html" class="nav-link">Contact Us</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- TAB 1: HOME (DOCUMENT MATCHING ENGINE) -->
+        <section id="tab-home" class="tab-content active">
+            <div class="hero">
+                <h1>Deterministic ATS Alignment Engine</h1>
+                <p>100% Local Vector Space Model. Fast, zero-API cost document matching.</p>
+            </div>
+
+            <div class="scanner-grid">
+                <div class="card upload-card">
+                    <h3>1. Upload Resume (PDF)</h3>
+                    <div class="drop-zone" id="drop-zone">
+                        <div class="drop-icon">📄</div>
+                        <p class="drop-text">Drag & drop your PDF here or <span class="browse-btn">browse</span></p>
+                        <input type="file" id="pdf-input" accept=".pdf" hidden>
+                        <div id="file-details" class="file-details hidden"></div>
+                    </div>
+                </div>
+
+                <div class="card jd-card">
+                    <h3>2. Target Job Requirements</h3>
+                    <textarea id="jd-input" placeholder="Paste target job description or skill requirements here..."></textarea>
+                </div>
+            </div>
+
+            <button id="analyze-btn" class="btn-primary" onclick="runAnalysis()">Run Vector Analysis</button>
+
+            <!-- LOADING SPINNER -->
+            <div id="loading-state" class="loading-state hidden">
+                <div class="spinner"></div>
+                <p>Computing TF-IDF Vector Space & spaCy POS Rules...</p>
+            </div>
+
+            <!-- RESULTS DASHBOARD -->
+            <div id="results-section" class="results-section hidden">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-title">Compatibility Score</span>
+                        <span id="score-val" class="metric-value">0%</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-title">Missing Keywords</span>
+                        <span id="missing-count" class="metric-value">0</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-title">Extracted Contact</span>
+                        <span id="contact-val" class="metric-value">N/A</span>
+                    </div>
+                </div>
+
+                <div class="card result-card" style="margin-bottom: 1.5rem;">
+                    <h3>Missing Technical Terms</h3>
+                    <div id="keyword-chips" class="keyword-chips"></div>
+                </div>
+
+                <div class="card result-card">
+                    <h3>Suggested Bullet Points (spaCy POS Rules)</h3>
+                    <ul id="bullet-list" class="bullet-list"></ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: ABOUT ENGINE -->
+        <section id="tab-about" class="tab-content">
+            <div class="hero">
+                <h1>Under the Hood of VectorCV</h1>
+                <p>Learn how our deterministic pipeline analyzes document similarity without external LLM calls.</p>
+            </div>
+
+            <div class="about-grid">
+                <div class="card">
+                    <span class="tech-badge">scikit-learn</span>
+                    <h3>TF-IDF & Cosine Similarity</h3>
+                    <p>Converts document terms into multi-dimensional vectors using term frequency-inverse document frequency, scoring spatial alignment with mathematical precision.</p>
+                </div>
+
+                <div class="card">
+                    <span class="tech-badge">spaCy NLP</span>
+                    <h3>Part-of-Speech Tagging</h3>
+                    <p>Utilizes lightweight spaCy pipelines (`en_core_web_sm`) to analyze grammatical structure and automatically extract lemmas, nouns, and action verbs.</p>
+                </div>
+
+                <div class="card">
+                    <span class="tech-badge">SQLite & FastAPI</span>
+                    <h3>Thread-Safe Logging</h3>
+                    <p>Integrates thread-safe connection managers and parameterized queries to log all vector scans directly into a local SQLite database.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: PRICING -->
+        <section id="tab-pricing" class="tab-content">
+            <div class="hero">
+                <h1>Transparent Pricing</h1>
+                <p>Deploy locally for personal use or scale using our high-throughput cluster.</p>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- Free Tier -->
+                <div class="card pricing-card">
+                    <div class="pricing-header">
+                        <h3>Community</h3>
+                        <p>For job seekers & self-hosters.</p>
+                    </div>
+                    <div class="pricing-price">$0 <span>/ forever</span></div>
+                    <ul class="pricing-features">
+                        <li>✔ 100% Local Offline Processing</li>
+                        <li>✔ Local SQLite Match Logs</li>
+                        <li>✔ Unlimited PDF Scans</li>
+                    </ul>
+                    <button class="btn-primary" onclick="switchTab('home')">Use Local Engine</button>
+                </div>
+
+                <!-- Featured Developer Tier -->
+                <div class="card pricing-card featured">
+                    <span class="badge-featured">POPULAR</span>
+                    <div class="pricing-header">
+                        <h3>Pro Self-Hosted</h3>
+                        <p>For active developers and engineers.</p>
+                    </div>
+                    <div class="pricing-price">$19 <span>/ month</span></div>
+                    <ul class="pricing-features">
+                        <li>✔ Custom Skill Taxonomy Mapping</li>
+                        <li>✔ Advanced Export Capabilities</li>
+                        <li>✔ Priority spaCy Custom Models</li>
+                    </ul>
+                    <button class="btn-primary">Upgrade Pro</button>
+                </div>
+
+                <!-- Enterprise Tier -->
+                <div class="card pricing-card">
+                    <div class="pricing-header">
+                        <h3>Enterprise Cluster</h3>
+                        <p>For high-throughput recruitment platforms.</p>
+                    </div>
+                    <div class="pricing-price">Custom</div>
+                    <ul class="pricing-features">
+                        <li>✔ FastAPI High-Concurrency Cluster</li>
+                        <li>✔ Custom DB Storage Adapters</li>
+                        <li>✔ SLA & Integration Support</li>
+                    </ul>
+                    <button class="btn-primary" style="background: var(--card-border);" onclick="window.location.href='/contact'">Contact Sales</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
