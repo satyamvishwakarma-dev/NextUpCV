@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from fastapi.responses import FileResponse, RedirectResponse
 
 # Import directly from your src modules
@@ -85,13 +86,16 @@ async def fetch_history():
     scans = get_recent_scans(limit=5)
     return {"status": "success", "history": scans}
 
+
 @app.get("/about")
 async def read_about():
     return FileResponse(os.path.join(frontend_dir, "about.html"))
 
+
 @app.get("/pricing")
 async def read_pricing():
     return FileResponse(os.path.join(frontend_dir, "pricing.html"))
+
 
 @app.get("/contact")
 async def read_contact():
@@ -106,3 +110,15 @@ if os.path.exists(frontend_dir):
     @app.get("/")
     async def serve_frontend():
         return FileResponse(os.path.join(frontend_dir, "index.html"))
+
+
+# Detect Vercel environment and use ephemeral /tmp directory
+IS_VERCEL = os.environ.get("VERCEL", False)
+
+if IS_VERCEL:
+    DB_DIR = Path("/tmp")
+else:
+    DB_DIR = Path(__file__).resolve().parent / "data"
+    DB_DIR.mkdir(exist_ok=True)
+
+DATABASE_URL = f"sqlite:///{DB_DIR / 'vectorcv.db'}"

@@ -1,11 +1,12 @@
 from vectorcv.database.connection import get_db_connection
 
+
 def save_scan_record(
     file_name: str,
     raw_resume_text: str,
     job_description: str,
     match_score: float,
-    missing_keyword_count: int
+    missing_keyword_count: int,
 ) -> int:
     """
     Inserts a scan record into SQLite and returns the auto-incremented row ID.
@@ -19,9 +20,16 @@ def save_scan_record(
         cursor = conn.cursor()
         cursor.execute(
             query,
-            (file_name, raw_resume_text, job_description, match_score, missing_keyword_count)
+            (
+                file_name,
+                raw_resume_text,
+                job_description,
+                match_score,
+                missing_keyword_count,
+            ),
         )
-        return cursor.lastrowid # type: ignore
+        return cursor.lastrowid  # type: ignore
+
 
 def get_recent_scans(limit: int = 5) -> list[dict]:
     """
