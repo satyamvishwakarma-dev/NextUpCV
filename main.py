@@ -1,13 +1,16 @@
-import os
 import sys
 import os
 from pathlib import Path
 
-# Explicitly add 'src' to Python path for Vercel Serverless
+# 1. Resolve project root and src directory
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
+
+# 2. Add 'src' to sys.path so 'nextupcv' can be imported directly
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 # Now import your application packages
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -17,7 +20,11 @@ from pathlib import Path
 from fastapi.responses import FileResponse, RedirectResponse
 
 # Import directly from your src modules
-from src.nextupcv import *
+from nextupcv.database.connection import init_db
+from nextupcv.database.repository import save_scan_record, get_recent_scans
+from nextupcv.services.pdf_parser import ResumeParserService
+from nextupcv.services.match_engine import MatchEngine
+from nextupcv.services.generator import RuleBasedBulletGenerator
 
 app = FastAPI(
     title="NextUpCV API",
