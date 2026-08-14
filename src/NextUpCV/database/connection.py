@@ -1,9 +1,10 @@
 import sqlite3
 import logging
 from contextlib import contextmanager
-from vectorcv.config import DB_PATH
+from NextUpCV.config import DB_PATH
 
 logger = logging.getLogger(__name__)
+
 
 @contextmanager
 def get_db_connection():
@@ -21,6 +22,7 @@ def get_db_connection():
         raise e
     finally:
         conn.close()
+
 
 def init_db():
     """

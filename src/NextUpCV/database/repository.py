@@ -1,4 +1,4 @@
-from vectorcv.database.connection import get_db_connection
+from NextUpCV.database.connection import get_db_connection
 
 
 def save_scan_record(

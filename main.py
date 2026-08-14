@@ -6,10 +6,10 @@ from pathlib import Path
 from fastapi.responses import FileResponse, RedirectResponse
 
 # Import directly from your src modules
-from src.vectorcv import *
+from src.NextUpCV import *
 
 app = FastAPI(
-    title="VectorCV API",
+    title="NextUpCV API",
     description="Deterministic ATS Engine REST API",
     version="2.0.0",
 )
@@ -34,7 +34,7 @@ bullet_generator = RuleBasedBulletGenerator()
 async def analyze_resume(
     file: UploadFile = File(...), job_description: str = Form(...)
 ):
-    if not file.filename.lower().endswith(".pdf"):
+    if not file.filename.lower().endswith(".pdf"): # type: ignore
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
     if not job_description.strip():
@@ -51,15 +51,15 @@ async def analyze_resume(
         raw_text = parsed_resume["raw_text"]
 
         # 2. Match Engine & spaCy Bullet Generation
-        match_score = match_engine.compute_similarity(raw_text, job_description)
-        missing_keywords = match_engine.extract_missing_keywords(
+        match_score = match_engine.compute_similarity(raw_text, job_description) # type: ignore
+        missing_keywords = match_engine.extract_missing_keywords( # type: ignore
             raw_text, job_description
         )
         suggested_bullets = bullet_generator.generate_tailored_bullets(missing_keywords)
 
         # 3. Save Record in SQLite
         scan_id = save_scan_record(
-            file_name=file.filename,
+            file_name=file.filename, # type: ignore
             raw_resume_text=raw_text,
             job_description=job_description,
             match_score=match_score,
@@ -121,4 +121,4 @@ else:
     DB_DIR = Path(__file__).resolve().parent / "data"
     DB_DIR.mkdir(exist_ok=True)
 
-DATABASE_URL = f"sqlite:///{DB_DIR / 'vectorcv.db'}"
+DATABASE_URL = f"sqlite:///{DB_DIR / 'NextUpCV.db'}"

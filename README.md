@@ -1,2 +1,2 @@
-# VectorCV
+# NextUpCV
 ---
