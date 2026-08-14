@@ -1,6 +1,6 @@
 import io
 import pdfplumber
-from NextUpCV.utilities.cleaner import clean_text, extract_contact_info
+from nextupcv.utilities.cleaner import clean_text, extract_contact_info
 
 
 class ResumeParserService:

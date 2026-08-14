@@ -1,7 +1,7 @@
 import sqlite3
 import logging
 from contextlib import contextmanager
-from NextUpCV.config import DB_PATH
+from nextupcv.config import DB_PATH
 
 logger = logging.getLogger(__name__)
 
