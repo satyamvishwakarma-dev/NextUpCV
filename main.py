@@ -1,38 +1,46 @@
-import sys
 import os
+import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, RedirectResponse
 
-# 1. Resolve project root and src directory
+# 1. Resolve Paths & Inject into sys.path
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
 
-# 2. Add 'src' to sys.path so 'nextupcv' can be imported directly
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-# Now import your application packages
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-from fastapi.responses import FileResponse, RedirectResponse
-
-# Import directly from your src modules
+# 2. Application Imports
 from nextupcv.database.connection import init_db
 from nextupcv.database.repository import save_scan_record, get_recent_scans
 from nextupcv.services.pdf_parser import ResumeParserService
 from nextupcv.services.match_engine import MatchEngine
 from nextupcv.services.generator import RuleBasedBulletGenerator
 
+# 3. Lifespan for Safe Database Initialization
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        init_db()
+        print("Database initialized successfully.")
+    except Exception as e:
+        print(f"Database init warning (non-fatal): {e}")
+    yield
+
 app = FastAPI(
     title="NextUpCV API",
     description="Deterministic ATS Engine REST API",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
-# Enable CORS for external API clients
+# 4. CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,13 +49,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Database & Core Engines
-init_db()
+# 5. Service Instances
 resume_parser = ResumeParserService()
 match_engine = MatchEngine()
 bullet_generator = RuleBasedBulletGenerator()
 
+# 6. Frontend Directory Setup
+FRONTEND_DIR = BASE_DIR / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
+    @app.get("/")
+    async def serve_frontend():
+        return FileResponse(FRONTEND_DIR / "index.html")
+
+# 7. Static Page Routes
+@app.get("/about")
+async def read_about():
+    about_file = FRONTEND_DIR / "about.html"
+    if about_file.exists():
+        return FileResponse(about_file)
+    raise HTTPException(status_code=404, detail="about.html not found")
+
+@app.get("/pricing")
+async def read_pricing():
+    pricing_file = FRONTEND_DIR / "pricing.html"
+    if pricing_file.exists():
+        return FileResponse(pricing_file)
+    raise HTTPException(status_code=404, detail="pricing.html not found")
+
+@app.get("/contact")
+async def read_contact():
+    return RedirectResponse(url="https://msystech.onrender.com/pages/contact.html")
+
+# 8. API Endpoints
 @app.post("/api/v1/analyze")
 async def analyze_resume(
     file: UploadFile = File(...), job_description: str = Form(...)
@@ -61,28 +96,32 @@ async def analyze_resume(
     try:
         file_bytes = await file.read()
 
-        # 1. Parse PDF
+        # Parse PDF
         parsed_resume = resume_parser.parse_resume(file_bytes)
         if "error" in parsed_resume:
             raise HTTPException(status_code=422, detail=parsed_resume["error"])
 
         raw_text = parsed_resume["raw_text"]
 
-        # 2. Match Engine & Bullet Generation
-        match_score = match_engine.compute_similarity(raw_text, job_description) # type: ignore
-        missing_keywords = match_engine.extract_missing_keywords( # type: ignore
+        # Match Engine & Bullet Generation
+        match_score = match_engine.compute_similarity(raw_text, job_description)
+        missing_keywords = match_engine.extract_missing_keywords(
             raw_text, job_description
         )
         suggested_bullets = bullet_generator.generate_tailored_bullets(missing_keywords)
 
-        # 3. Save Record in SQLite
-        scan_id = save_scan_record(
-            file_name=file.filename,
-            raw_resume_text=raw_text,
-            job_description=job_description,
-            match_score=match_score,
-            missing_keyword_count=len(missing_keywords),
-        )
+        # Save Record in SQLite
+        scan_id = None
+        try:
+            scan_id = save_scan_record(
+                file_name=file.filename,
+                raw_resume_text=raw_text,
+                job_description=job_description,
+                match_score=match_score,
+                missing_keyword_count=len(missing_keywords),
+            )
+        except Exception as db_err:
+            print(f"Warning: Failed to save scan history: {db_err}")
 
         return {
             "status": "success",
@@ -95,52 +134,15 @@ async def analyze_resume(
         }
 
     except HTTPException:
-        # Re-raise explicit HTTPExceptions (like 400 and 422) untouched
         raise
     except Exception as e:
-        # Catch unexpected server crashes and return 500
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/v1/history")
 async def fetch_history():
     """Returns past scans logged in SQLite."""
-    scans = get_recent_scans(limit=5)
-    return {"status": "success", "history": scans}
-
-
-@app.get("/about")
-async def read_about():
-    return FileResponse(os.path.join(frontend_dir, "about.html"))
-
-
-@app.get("/pricing")
-async def read_pricing():
-    return FileResponse(os.path.join(frontend_dir, "pricing.html"))
-
-
-@app.get("/contact")
-async def read_contact():
-    return RedirectResponse(url="https://msystech.onrender.com/pages/contact.html")
-
-
-# Serve HTML/CSS/JS frontend files
-frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
-if os.path.exists(frontend_dir):
-    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
-
-    @app.get("/")
-    async def serve_frontend():
-        return FileResponse(os.path.join(frontend_dir, "index.html"))
-
-
-# Detect Vercel environment and use ephemeral /tmp directory
-IS_VERCEL = os.environ.get("VERCEL", False)
-
-if IS_VERCEL:
-    DB_DIR = Path("/tmp")
-else:
-    DB_DIR = Path(__file__).resolve().parent / "data"
-    DB_DIR.mkdir(exist_ok=True)
-
-DATABASE_URL = f"sqlite:///{DB_DIR / 'NextUpCV.db'}"
+    try:
+        scans = get_recent_scans(limit=5)
+        return {"status": "success", "history": scans}
+    except Exception:
+        return {"status": "success", "history": []}
