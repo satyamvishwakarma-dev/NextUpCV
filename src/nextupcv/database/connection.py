@@ -1,43 +1,47 @@
+# src/nextupcv/database/connection.py
+import os
 import sqlite3
-import logging
 from contextlib import contextmanager
-from nextupcv.config import DB_PATH
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# On Vercel / serverless, write to /tmp. Locally, use the project data folder or /tmp.
+if os.environ.get("VERCEL") or os.path.exists("/tmp"):
+    DB_PATH = Path("/tmp/nextupcv.db")
+else:
+    DB_PATH = Path(__file__).resolve().parent.parent.parent.parent / "nextupcv.db"
+
+# Ensure parent directory exists
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 @contextmanager
 def get_db_connection():
-    """
-    Thread-safe context manager for local SQLite database connections.
-    """
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = sqlite3.connect(str(DB_PATH), timeout=10.0)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
         conn.commit()
-    except Exception as e:
+    except Exception:
         conn.rollback()
-        logger.error(f"Database error encountered: {e}")
-        raise e
+        raise
     finally:
         conn.close()
 
 
 def init_db():
-    """
-    Creates scan_logs table schema if it does not already exist.
-    """
-    schema = """
-    CREATE TABLE IF NOT EXISTS scan_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_name TEXT NOT NULL,
-        raw_resume_text TEXT NOT NULL,
-        job_description TEXT NOT NULL,
-        match_score REAL NOT NULL,
-        missing_keyword_count INTEGER NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """
+    """Initializes tables in the SQLite database."""
     with get_db_connection() as conn:
-        conn.executescript(schema)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scan_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_name TEXT,
+                raw_resume_text TEXT,
+                job_description TEXT,
+                match_score INTEGER,
+                missing_keyword_count INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
