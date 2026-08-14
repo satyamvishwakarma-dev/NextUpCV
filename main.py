@@ -1,4 +1,15 @@
 import os
+import sys
+import os
+from pathlib import Path
+
+# Explicitly add 'src' to Python path for Vercel Serverless
+BASE_DIR = Path(__file__).resolve().parent
+SRC_DIR = BASE_DIR / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+# Now import your application packages
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -6,7 +17,7 @@ from pathlib import Path
 from fastapi.responses import FileResponse, RedirectResponse
 
 # Import directly from your src modules
-from src.NextUpCV import *
+from src.nextupcv import *
 
 app = FastAPI(
     title="NextUpCV API",
@@ -34,7 +45,7 @@ bullet_generator = RuleBasedBulletGenerator()
 async def analyze_resume(
     file: UploadFile = File(...), job_description: str = Form(...)
 ):
-    if not file.filename.lower().endswith(".pdf"): # type: ignore
+    if not file.filename.lower().endswith(".pdf"):  # type: ignore
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
     if not job_description.strip():
@@ -51,15 +62,15 @@ async def analyze_resume(
         raw_text = parsed_resume["raw_text"]
 
         # 2. Match Engine & spaCy Bullet Generation
-        match_score = match_engine.compute_similarity(raw_text, job_description) # type: ignore
-        missing_keywords = match_engine.extract_missing_keywords( # type: ignore
+        match_score = match_engine.compute_similarity(raw_text, job_description)  # type: ignore
+        missing_keywords = match_engine.extract_missing_keywords(  # type: ignore
             raw_text, job_description
         )
         suggested_bullets = bullet_generator.generate_tailored_bullets(missing_keywords)
 
         # 3. Save Record in SQLite
         scan_id = save_scan_record(
-            file_name=file.filename, # type: ignore
+            file_name=file.filename,  # type: ignore
             raw_resume_text=raw_text,
             job_description=job_description,
             match_score=match_score,
