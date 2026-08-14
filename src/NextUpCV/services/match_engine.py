@@ -1,53 +1,58 @@
+import math
+import re
 from collections import Counter
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import spacy
-from nextupcv.config import SPACY_MODEL
-
+from typing import List, Tuple
 
 class MatchEngine:
-    """
-    Vector Space Matching Engine utilizing TF-IDF and Cosine Similarity.
-    """
+    STOPWORDS = {
+        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
+        "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being",
+        "below", "between", "both", "but", "by", "can't", "cannot", "could", "did",
+        "do", "does", "doing", "don't", "down", "during", "each", "few", "for", "from",
+        "further", "had", "has", "have", "having", "he", "her", "here", "hers", "herself",
+        "him", "himself", "his", "how", "i", "if", "in", "into", "is", "isn't", "it",
+        "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself",
+        "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought",
+        "our", "ours", "ourselves", "out", "over", "own", "same", "she", "should",
+        "so", "some", "such", "than", "that", "the", "their", "theirs", "them",
+        "themselves", "then", "there", "these", "they", "this", "those", "through",
+        "to", "too", "under", "until", "up", "very", "was", "we", "were", "what",
+        "when", "where", "which", "while", "who", "whom", "why", "with", "would", "you", "your"
+    }
 
-    def __init__(self):
-        self.nlp = spacy.load(SPACY_MODEL)
+    def _tokenize(self, text: str) -> List[str]:
+        words = re.findall(r'\b[a-zA-Z]{2,}\b', text.lower())
+        return [w for w in words if w not in self.STOPWORDS]
 
-    def compute_similarity(self, resume_text: str, job_desc_text: str) -> float:
-        if not resume_text.strip() or not job_desc_text.strip():
-            return 0.0
+    def calculate_score(self, resume_text: str, jd_text: str) -> Tuple[int, List[str]]:
+        resume_tokens = self._tokenize(resume_text)
+        jd_tokens = self._tokenize(jd_text)
 
-        vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2))
-        try:
-            tfidf_matrix = vectorizer.fit_transform([resume_text, job_desc_text])
-            similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]  # type: ignore
-            return round(float(similarity) * 100, 2)
-        except ValueError:
-            return 0.0
+        if not jd_tokens or not resume_tokens:
+            return 0, []
 
-    def extract_missing_keywords(
-        self, resume_text: str, job_desc_text: str, top_n: int = 8
-    ) -> list[str]:
-        res_doc = self.nlp(resume_text.lower())
-        jd_doc = self.nlp(job_desc_text.lower())
+        resume_counts = Counter(resume_tokens)
+        jd_counts = Counter(jd_tokens)
 
-        resume_lemmas = {
-            token.lemma_
-            for token in res_doc
-            if not token.is_stop and not token.is_punct and token.is_alpha
-        }
+        # 1. Cosine Similarity Calculation
+        all_words = set(resume_counts.keys()).union(set(jd_counts.keys()))
+        dot_product = sum(resume_counts[w] * jd_counts[w] for w in all_words)
+        
+        mag_resume = math.sqrt(sum(v ** 2 for v in resume_counts.values()))
+        mag_jd = math.sqrt(sum(v ** 2 for v in jd_counts.values()))
+        
+        if mag_resume == 0 or mag_jd == 0:
+            cosine_sim = 0.0
+        else:
+            cosine_sim = dot_product / (mag_resume * mag_jd)
 
-        jd_keywords = []
-        for token in jd_doc:
-            if (
-                not token.is_stop
-                and not token.is_punct
-                and token.is_alpha
-                and len(token.text) > 2
-                and token.pos_ in ("NOUN", "PROPN")
-            ):
-                if token.lemma_ not in resume_lemmas:
-                    jd_keywords.append(token.text.lower())
+        # Scale match score between 0 and 100
+        score = int(min(max(cosine_sim * 100 * 1.5, 0), 100))
 
-        counts = Counter(jd_keywords)
-        return [kw for kw, _ in counts.most_common(top_n)]
+        # 2. Missing keywords: Top keywords in JD missing from resume
+        missing_keywords = [
+            word for word, _ in jd_counts.most_common(15)
+            if word not in resume_counts
+        ][:6]
+
+        return score, missing_keywords
