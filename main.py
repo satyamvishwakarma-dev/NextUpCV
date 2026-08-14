@@ -52,7 +52,7 @@ bullet_generator = RuleBasedBulletGenerator()
 async def analyze_resume(
     file: UploadFile = File(...), job_description: str = Form(...)
 ):
-    if not file.filename.lower().endswith(".pdf"):  # type: ignore
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
     if not job_description.strip():
@@ -68,16 +68,16 @@ async def analyze_resume(
 
         raw_text = parsed_resume["raw_text"]
 
-        # 2. Match Engine & spaCy Bullet Generation
-        match_score = match_engine.compute_similarity(raw_text, job_description)  # type: ignore
-        missing_keywords = match_engine.extract_missing_keywords(  # type: ignore
+        # 2. Match Engine & Bullet Generation
+        match_score = match_engine.compute_similarity(raw_text, job_description) # type: ignore
+        missing_keywords = match_engine.extract_missing_keywords( # type: ignore
             raw_text, job_description
         )
         suggested_bullets = bullet_generator.generate_tailored_bullets(missing_keywords)
 
         # 3. Save Record in SQLite
         scan_id = save_scan_record(
-            file_name=file.filename,  # type: ignore
+            file_name=file.filename,
             raw_resume_text=raw_text,
             job_description=job_description,
             match_score=match_score,
@@ -94,7 +94,11 @@ async def analyze_resume(
             "suggested_bullets": suggested_bullets,
         }
 
+    except HTTPException:
+        # Re-raise explicit HTTPExceptions (like 400 and 422) untouched
+        raise
     except Exception as e:
+        # Catch unexpected server crashes and return 500
         raise HTTPException(status_code=500, detail=str(e))
 
 
