@@ -1,19 +1,17 @@
-# src/nextupcv/database/connection.py
 import os
 import sqlite3
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
-# Use the system temp directory across OS / Serverless environments
-# (On Vercel/Linux this is /tmp/nextupcv.db, which is writable)
+# Use the writable /tmp directory on Vercel/Linux
 TEMP_DIR = Path(tempfile.gettempdir())
 DB_PATH = TEMP_DIR / "nextupcv.db"
 
 
 @contextmanager
 def get_db_connection():
-    """Context manager for SQLite connections ensuring auto-commit and cleanup."""
+    """Context manager for SQLite connections with auto-commit and cleanup."""
     conn = sqlite3.connect(str(DB_PATH), timeout=15.0)
     conn.row_factory = sqlite3.Row
     try:
@@ -27,7 +25,7 @@ def get_db_connection():
 
 
 def init_db():
-    """Initializes tables inside the writable SQLite database."""
+    """Creates tables if they do not exist."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(

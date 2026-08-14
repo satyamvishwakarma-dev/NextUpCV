@@ -22,21 +22,24 @@ from nextupcv.database.repository import save_scan_record, get_recent_scans
 from nextupcv.services.pdf_parser import ResumeParserService
 from nextupcv.services.match_engine import MatchEngine
 from nextupcv.services.generator import RuleBasedBulletGenerator
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from nextupcv.database.connection import init_db
+
 
 # 3. Lifespan for Safe Database Initialization
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
         init_db()
-        print("Database initialized successfully.")
+        print("Database successfully initialized in /tmp/nextupcv.db")
     except Exception as e:
-        print(f"Database init warning (non-fatal): {e}")
+        print(f"Warning: Database initialization error: {e}")
     yield
+
 
 app = FastAPI(
     title="NextUpCV API",
-    description="Deterministic ATS Engine REST API",
-    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -63,6 +66,7 @@ if FRONTEND_DIR.exists():
     async def serve_frontend():
         return FileResponse(FRONTEND_DIR / "index.html")
 
+
 # 7. Static Page Routes
 @app.get("/about")
 async def read_about():
@@ -71,6 +75,7 @@ async def read_about():
         return FileResponse(about_file)
     raise HTTPException(status_code=404, detail="about.html not found")
 
+
 @app.get("/pricing")
 async def read_pricing():
     pricing_file = FRONTEND_DIR / "pricing.html"
@@ -78,9 +83,11 @@ async def read_pricing():
         return FileResponse(pricing_file)
     raise HTTPException(status_code=404, detail="pricing.html not found")
 
+
 @app.get("/contact")
 async def read_contact():
     return RedirectResponse(url="https://msystech.onrender.com/pages/contact.html")
+
 
 # 8. API Endpoints
 @app.post("/api/v1/analyze")
@@ -137,6 +144,7 @@ async def analyze_resume(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/v1/history")
 async def fetch_history():
